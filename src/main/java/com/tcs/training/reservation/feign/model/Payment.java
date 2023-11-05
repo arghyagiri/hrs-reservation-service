@@ -1,5 +1,9 @@
 package com.tcs.training.reservation.feign.model;
 
+import jakarta.persistence.Column;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -21,5 +25,9 @@ public class Payment {
 	private BigDecimal amount;
 
 	private PaymentStatus paymentStatus;
+
+	private PaymentChannel paymentChannel;
+
+	private PaymentType paymentType;
 
 }

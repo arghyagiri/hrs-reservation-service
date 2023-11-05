@@ -1,16 +1,12 @@
 package com.tcs.training.reservation.service;
 
-import com.fasterxml.jackson.databind.ser.std.UUIDSerializer;
 import com.tcs.training.model.exception.NoDataFoundException;
 import com.tcs.training.model.notification.NotificationContext;
 import com.tcs.training.reservation.entity.Reservation;
 import com.tcs.training.reservation.feign.client.CustomerClient;
 import com.tcs.training.reservation.feign.client.HotelClient;
 import com.tcs.training.reservation.feign.client.PaymentClient;
-import com.tcs.training.reservation.feign.model.Customer;
-import com.tcs.training.reservation.feign.model.HotelListings;
-import com.tcs.training.reservation.feign.model.HotelRoom;
-import com.tcs.training.reservation.feign.model.Payment;
+import com.tcs.training.reservation.feign.model.*;
 import com.tcs.training.reservation.repository.ReservationRepository;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
@@ -18,6 +14,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.serialization.Serde;
 import org.apache.kafka.common.serialization.Serializer;
+import org.apache.kafka.common.serialization.UUIDSerializer;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.kafka.core.DefaultKafkaProducerFactory;
 import org.springframework.kafka.core.KafkaTemplate;
@@ -48,12 +45,35 @@ public class ReservationService {
 
 	@Transactional
 	public Reservation makeReservation(Reservation reservation) {
-			HotelRoom hotelRoom = hotelClient.book(HotelRoom.builder().customerId(reservation.getCustomerId()).roomId(reservation.getRoomId()).build());
-		if(hotelRoom !=null){
+		HotelRoom hotelRoom = hotelClient.reserve(
+				HotelRoom.builder().customerId(reservation.getCustomerId()).roomId(reservation.getRoomId()).build());
+		if (hotelRoom != null) {
 			reservation.setRentRatePerNight(hotelRoom.getRent());
-			reservation.setTotalRent(calculateTotalRent(reservation));
-			//paymentClient.doPayment();
-			return reservationRepository.save(reservation);
+			BigDecimal totalRent = calculateTotalRent(reservation);
+			reservation.setTotalRent(totalRent);
+			Payment payment = paymentClient.processPayment(Payment.builder()
+				.customerId(reservation.getCustomerId())
+				.amount(totalRent)
+				.paymentChannel(PaymentChannel.MASTERCARD)
+				.paymentType(PaymentType.PAY)
+				.build());
+			if (payment != null) {
+				reservation.setPaymentStatus(payment.getPaymentStatus());
+				reservation.setPaymentId(payment.getPaymentId());
+				if (PaymentStatus.SUCCESS.equals(payment.getPaymentStatus())) {
+					hotelClient.confirmBooking(hotelRoom);
+					reservation = reservationRepository.save(reservation);
+					sendReservationNotification(reservation);
+					return reservation;
+				}
+				else {
+					hotelClient.unReserve(hotelRoom);
+					throw new NoDataFoundException("Payment failed.");
+				}
+			}
+			else {
+				throw new NoDataFoundException("Payment failed.");
+			}
 		}
 		throw new NoDataFoundException("Requested hotel room is no more available.");
 	}
@@ -78,6 +98,31 @@ public class ReservationService {
 
 	private Payment initiatePaymentRefund(UUID paymentId) {
 		return paymentClient.processRefund(paymentId);
+	}
+
+	public void sendReservationNotification(Reservation reservation) {
+		Customer customer = customerClient.getCustomerByCustomerId(reservation.getCustomerId());
+		if (customer != null) {
+			NotificationContext nc = new NotificationContext();
+			nc.setBody(String.format("""
+					Thanks for choosing us as your comfort partner.
+					You booking for room no %s is confirmed stating %s and ending %s.
+					Why don’t you follow us on [social media] as well?\n
+					-Great Comfort Hotels
+					""", reservation.getRoomId(), reservation.getStartDate(), reservation.getEndDate()));
+			nc.setType("email");
+			nc.setSeverity("Low");
+			nc.setCreatedAt(new Date());
+			Map<String, String> context = new HashMap<>();
+			context.put("to", customer.getEmailAddress());
+			context.put("sub", String.format("Reservation Confirmed [#%s]", reservation.getReservationId()));
+			nc.setContext(context);
+			publishEventToNotificationTopic(nc);
+		}
+		else {
+			throw new NoDataFoundException(
+					"Reservation cancellation failed due to invalid customer id #" + reservation.getCustomerId());
+		}
 	}
 
 	public void sendCancellationNotification(Reservation reservation) {

@@ -20,8 +20,13 @@ public interface HotelClient {
 	@GetMapping("/{id}")
 	public HotelListings getHotelById(@PathVariable Long id);
 
-	@PostMapping("/book")
-	public HotelRoom book(@RequestBody HotelRoom hotelRoom);
+	@PostMapping("/reserve")
+	public HotelRoom reserve(@RequestBody HotelRoom hotelRoom);
 
+	@PostMapping("/un-reserve")
+	public HotelRoom unReserve(@RequestBody HotelRoom hotelRoom);
+
+	@PostMapping("/book")
+	public HotelRoom confirmBooking(@RequestBody HotelRoom hotelRoom);
 
 }

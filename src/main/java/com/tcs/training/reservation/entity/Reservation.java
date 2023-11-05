@@ -1,5 +1,6 @@
 package com.tcs.training.reservation.entity;
 
+import com.tcs.training.reservation.feign.model.PaymentStatus;
 import com.tcs.training.reservation.model.PaymentDetails;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
@@ -41,6 +42,8 @@ public class Reservation implements Serializable {
 	private BigDecimal rentRatePerNight;
 
 	private BigDecimal totalRent;
+
+	private PaymentStatus paymentStatus;
 
 	@Transient
 	private PaymentDetails paymentDetails;

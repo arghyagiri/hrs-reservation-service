@@ -12,13 +12,15 @@ import java.math.BigDecimal;
 @NoArgsConstructor
 @Builder
 public class HotelRoom {
-    private Long roomId;
 
-    private Long customerId;
+	private Long roomId;
 
-    private BigDecimal rent;
+	private Long customerId;
 
-    private String roomStatus;
+	private BigDecimal rent;
 
-    private String roomType;
+	private String roomStatus;
+
+	private String roomType;
+
 }

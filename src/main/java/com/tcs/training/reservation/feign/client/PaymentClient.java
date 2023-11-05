@@ -5,6 +5,7 @@ import com.tcs.training.reservation.feign.model.Payment;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 
 import java.util.UUID;
 
@@ -13,5 +14,8 @@ public interface PaymentClient {
 
 	@PostMapping("/refund/{paymentId}")
 	public Payment processRefund(@PathVariable("paymentId") UUID paymentId);
+
+	@PostMapping("/pay")
+	public Payment processPayment(@RequestBody Payment payment);
 
 }
