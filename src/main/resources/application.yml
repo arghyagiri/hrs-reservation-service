@@ -56,7 +56,8 @@ feign:
     name: customer-service
   paymentClient:
     name: payment-service
-
+  hotelClient:
+    name: hotel-management-service
 spring.cloud.stream:
   kafka.streams:
     binder:
