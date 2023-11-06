@@ -6,6 +6,7 @@ import com.tcs.training.reservation.service.ReservationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -18,7 +19,7 @@ public class ReservationController {
 	private final ReservationRepository reservationRepository;
 
 	@GetMapping("/{id}")
-	public Reservation getPaymentDetailsByUId(@PathVariable UUID id) {
+	public Reservation getReservationById(@PathVariable UUID id) {
 		return reservationRepository.getReferenceById(id);
 	}
 
@@ -36,6 +37,11 @@ public class ReservationController {
 	public String cancelReservation(@PathVariable("id") UUID reservationId) {
 		reservationService.cancelReservation(reservationId);
 		return "Cancellation completed. Refund initiated";
+	}
+
+	@GetMapping("/customer/{id}")
+	public List<Reservation> getReservationForCustomer(@PathVariable("id") Long customerId) {
+		return reservationRepository.findByCustomerId(customerId);
 	}
 
 }

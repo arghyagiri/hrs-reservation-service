@@ -87,8 +87,12 @@ public class ReservationService {
 	public void cancelReservation(UUID reservationId) {
 		Reservation reservation = reservationRepository.getReferenceById(reservationId);
 		if (reservation != null) {
-			reservationRepository.deleteById(reservationId);
 			initiatePaymentRefund(reservation.getPaymentId());
+			reservationRepository.deleteById(reservationId);
+			hotelClient.unReserve(HotelRoom.builder()
+				.roomId(reservation.getRoomId())
+				.customerId(reservation.getCustomerId())
+				.build());
 			sendCancellationNotification(reservation);
 		}
 		else {
@@ -129,13 +133,10 @@ public class ReservationService {
 		Customer customer = customerClient.getCustomerByCustomerId(reservation.getCustomerId());
 		if (customer != null) {
 			NotificationContext nc = new NotificationContext();
-			nc.setBody(String.format("""
-									Sorry to hear that you want to cancel your booking!\n
-									Your booking ref #%s has been cancelled and payment refund initiated with ref #%s.
-					Wish to see you soon again and give us opportunity to serve you better.\n
-					Why don’t you follow us on [social media] as well?\n
-					-Great Comfort Hotels
-					""", reservation.getReservationId(), reservation.getPaymentId()));
+			nc.setBody(String.format(
+					"Your booking ref %s has been cancelled and payment refund initiated with ref %s."
+							+ "Wish to see you soon again!\n-Great Comfort Hotels",
+					reservation.getReservationId(), reservation.getPaymentId()));
 			nc.setType("email");
 			nc.setSeverity("Low");
 			nc.setCreatedAt(new Date());
